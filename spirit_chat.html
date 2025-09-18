@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Spirit Chat — Simulated Séance</title>
+  <style>
+    :root{--bg:#0b0f14;--panel:#0f1720;--accent:#6ee7b7;--ghost:#9aa8b3}
+    html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Roboto,system-ui,-apple-system,"Helvetica Neue",Arial}
+    body{background:radial-gradient(ellipse at top left,#08111a 0%,#05060a 60%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent);color:#e6eef6;display:flex;align-items:center;justify-content:center}
+    .app{width:920px;max-width:96%;height:640px;max-height:92%;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:14px;padding:20px;box-shadow:0 10px 40px rgba(2,6,23,0.7);display:grid;grid-template-rows:60px 1fr 84px;gap:14px}
+    header{display:flex;align-items:center;gap:12px}
+    .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#4b5563,#0ea5a1);display:flex;align-items:center;justify-content:center;font-weight:700}
+    h1{font-size:18px;margin:0}
+    .subtitle{font-size:12px;color:var(--ghost)}
+
+    .panel{background:rgba(7,11,15,0.45);border:1px solid rgba(255,255,255,0.03);border-radius:10px;padding:14px;overflow:hidden}
+    .log{height:100%;overflow:auto;padding:6px;display:flex;flex-direction:column;gap:10px}
+    .bubble{max-width:78%;padding:10px 12px;border-radius:10px;line-height:1.25}
+    .user{align-self:flex-end;background:linear-gradient(180deg,#0ea5a1,#02848a);color:#05221f;border-bottom-right-radius:2px}
+    .spirit{align-self:flex-start;background:rgba(255,255,255,0.03);color:#dff3f0;border-bottom-left-radius:2px;border:1px solid rgba(255,255,255,0.02)}
+    .meta{font-size:11px;color:var(--ghost);margin-bottom:6px}
+
+    .controls{display:flex;gap:8px;align-items:center}
+    input[type=text]{flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit}
+    button{padding:10px 14px;border-radius:10px;border:0;background:#111827;color:#eafaf5;cursor:pointer}
+    .danger{background:#7f1d1d}
+    .small{font-size:13px;padding:8px 10px}
+    .tools{display:flex;gap:8px;align-items:center}
+
+    .footer-note{font-size:12px;color:var(--ghost);margin-left:auto}
+
+    .glitch{position:relative}
+    .glitch::after,.glitch::before{content:"";position:absolute;inset:0;border-radius:10px;mix-blend-mode:screen;opacity:0.06;background:linear-gradient(90deg,#bde4ff,transparent);pointer-events:none}
+
+    .controls .select{background:transparent;border:1px solid rgba(255,255,255,0.03);padding:8px;border-radius:8px;color:inherit}
+    .toolbar{display:flex;gap:8px;align-items:center}
+
+    .status{font-size:12px;color:var(--ghost)}
+
+    .disclaimer{font-size:12px;color:#cbd5e1;padding:10px;background:rgba(255,255,255,0.02);border-radius:8px}
+
+    @media (max-width:640px){.app{height:88vh;padding:12px;grid-template-rows:56px 1fr 96px}}
+  </style>
+</head>
+<body>
+  <div class="app panel" role="application" aria-label="Spirit Chat simulated séance">
+    <header>
+      <div class="logo">SC</div>
+      <div>
+        <h1>Spirit Chat — simulated séance</h1>
+        <div class="subtitle">A playful, fictional spirit-communication simulator (for entertainment only)</div>
+      </div>
+      <div style="margin-left:auto" class="toolbar">
+        <div class="status" id="status">Idle</div>
+      </div>
+    </header>
+
+    <main class="panel">
+      <div class="log" id="log" aria-live="polite"></div>
+    </main>
+
+    <section style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="mood" class="select" title="Spirit mood">
+          <option value="calm">Calm</option>
+          <option value="mischief">Mischief</option>
+          <option value="melancholy">Melancholy</option>
+          <option value="cryptic">Cryptic</option>
+        </select>
+
+        <div class="tools">
+          <button id="summon" class="small">Summon</button>
+          <button id="clear" class="small">Clear</button>
+          <button id="download" class="small">Download Log</button>
+          <button id="ttsToggle" class="small">TTS: Off</button>
+        </div>
+
+        <div class="footer-note">Model: <strong>Simulated</strong></div>
+      </div>
+
+      <div class="controls">
+        <input id="input" type="text" placeholder="Ask a question to the spirit..." aria-label="Ask a question" />
+        <button id="ask">Ask</button>
+      </div>
+
+      <div class="disclaimer">This is an entertainment toy — results are generated from a simulated response bank and randomized. If you want stronger realism, try the settings or ask for a ' séance script' mode.</div>
+    </section>
+  </div>
+
+  <script>
+    // Simple simulated spirit chat (client-side only)
+    const log = document.getElementById('log');
+    const input = document.getElementById('input');
+    const askBtn = document.getElementById('ask');
+    const clearBtn = document.getElementById('clear');
+    const summonBtn = document.getElementById('summon');
+    const downloadBtn = document.getElementById('download');
+    const moodSelect = document.getElementById('mood');
+    const statusEl = document.getElementById('status');
+    const ttsToggle = document.getElementById('ttsToggle');
+
+    let ttsOn = false;
+    let session = [];
+
+    // Response banks by mood
+    const responses = {
+      calm: [
+        "I sense peace...",
+        "Tell me more of your story.",
+        "Yes, I remember that place.",
+        "There is a soft light behind the willow."
+      ],
+      mischief: [
+        "Heh... you shouldn't have asked that.",
+        "Watch your step.",
+        "A riddle: what walks without feet?",
+        "I like the way you whisper."
+      ],
+      melancholy: [
+        "I am tired of the cold nights.",
+        "We remember those we loved.",
+        "The clocks here have slowed down.",
+        "Sometimes the rain speaks louder."
+      ],
+      cryptic: [
+        "14 then 7, then you will know.",
+        "When the moon faces east, listen.",
+        "A hidden door opens with three knocks.",
+        "The names hide inside the silence."
+      ]
+    };
+
+    function appendBubble(text, who='spirit'){
+      const el = document.createElement('div');
+      el.className = 'bubble ' + (who==='user'? 'user' : 'spirit');
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = (who==='user'? 'You' : 'Spirit') + ' · ' + new Date().toLocaleTimeString();
+      el.appendChild(meta);
+      const body = document.createElement('div');
+      body.textContent = text;
+      el.appendChild(body);
+      log.appendChild(el);
+      log.scrollTop = log.scrollHeight;
+      session.push({who,text,time:Date.now()});
+    }
+
+    function spiritReply(question){
+      const mood = moodSelect.value;
+      // small chance to combine two responses and add randomness
+      const bank = responses[mood] || responses.calm;
+      const r = Math.random();
+      let reply = bank[Math.floor(Math.random()*bank.length)];
+      if(r>0.85) reply = bank[Math.floor(Math.random()*bank.length)] + ' ' + bank[Math.floor(Math.random()*bank.length)];
+      if(r<0.06) reply = '...'; // silence
+
+      // If the user asks about a name or date, occasionally echo back
+      const q = question.toLowerCase();
+      const nameMatch = q.match(/my name is (\w+)/i);
+      if(nameMatch) reply = `I hear the name ${nameMatch[1]}.`; 
+
+      // Add a subtle glitch/typing effect
+      typeOut(reply);
+    }
+
+    function typeOut(fullText){
+      statusEl.textContent = 'Contacting...';
+      const typing = document.createElement('div');
+      typing.className = 'bubble spirit';
+      typing.innerHTML = '<div class="meta">Spirit · ' + new Date().toLocaleTimeString() + '</div><div class="body"></div>';
+      log.appendChild(typing);
+      log.scrollTop = log.scrollHeight;
+      const body = typing.querySelector('.body');
+      let i=0;
+      const speed = 20 + Math.random()*40;
+      const t = setInterval(()=>{
+        body.textContent = fullText.slice(0,i+1);
+        i++;
+        log.scrollTop = log.scrollHeight;
+        if(i>=fullText.length){
+          clearInterval(t);
+          // finalize
+          statusEl.textContent = 'Idle';
+          session.push({who:'spirit',text:fullText,time:Date.now()});
+          // TTS
+          if(ttsOn && 'speechSynthesis' in window){
+            const u = new SpeechSynthesisUtterance(fullText);
+            u.rate = 0.95;
+            speechSynthesis.speak(u);
+          }
+        }
+      }, speed);
+    }
+
+    askBtn.addEventListener('click', ()=>{
+      const text = input.value.trim();
+      if(!text) return;
+      appendBubble(text,'user');
+      input.value = '';
+      // short delay then reply
+      const delay = 600 + Math.random()*1800;
+      setTimeout(()=>spiritReply(text), delay);
+    });
+
+    input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ askBtn.click(); } });
+
+    clearBtn.addEventListener('click', ()=>{ log.innerHTML=''; session=[]; statusEl.textContent='Idle'; });
+
+    summonBtn.addEventListener('click', ()=>{
+      appendBubble('I call upon the spirits...','user');
+      statusEl.textContent = 'Summoning...';
+      setTimeout(()=>{
+        spiritReply('You have been summoned.');
+      }, 900 + Math.random()*1200);
+    });
+
+    downloadBtn.addEventListener('click', ()=>{
+      if(session.length===0) return alert('No session to download.');
+      const text = session.map(s=>`[${new Date(s.time).toLocaleString()}] ${s.who.toUpperCase()}: ${s.text}`).join('\n');
+      const blob = new Blob([text], {type:'text/plain'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'spirit-session.txt';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+
+    ttsToggle.addEventListener('click', ()=>{
+      ttsOn = !ttsOn; ttsToggle.textContent = 'TTS: ' + (ttsOn? 'On' : 'Off');
+    });
+
+    // small ambient oscillator for mood (optional subtle audio) — used only if user interacts
+    let audioCtx;
+    function startAmbient(){
+      if(audioCtx) return;
+      audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'sine';
+      o.frequency.value = 80 + Math.random()*40;
+      g.gain.value = 0.000; // start muted
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start();
+      // slowly raise volume
+      let vol = 0;
+      const iv = setInterval(()=>{ if(vol<0.005){vol += 0.0006; g.gain.value = vol;} else clearInterval(iv); }, 200);
+    }
+
+    // keyboard shortcut S to summon
+    window.addEventListener('keydown', (e)=>{ if(e.key.toLowerCase()==='s' && document.activeElement!==input){ summonBtn.click(); startAmbient(); } });
+
+    // seed with a starting message
+    (function intro(){
+      const el = document.createElement('div'); el.className='meta'; el.textContent = 'Session started — ' + new Date().toLocaleString();
+      log.appendChild(el);
+      appendBubble('The air grows thin...', 'spirit');
+    })();
+
+    // Accessibility note: simple text, focus order natural
+  </script>
+</body>
+</html>
